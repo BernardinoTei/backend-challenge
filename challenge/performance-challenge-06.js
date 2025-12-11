@@ -3,13 +3,7 @@ const app = express();
 
 app.use(express.json());
 
-// BUG 1: Memory leak - growing arrays never cleaned
-// BUG 2: N+1 query problem in related data fetching
-// BUG 3: No caching of expensive operations
-// BUG 4: Synchronous blocking operations
-// BUG 5: Inefficient algorithms
 
-// Simulated databases
 const users = [
   { id: 1, name: 'Alice', email: 'alice@example.com', departmentId: 1 },
   { id: 2, name: 'Bob', email: 'bob@example.com', departmentId: 1 },
@@ -42,12 +36,12 @@ for (let i = 1; i <= 500; i++) {
   });
 }
 
-// BUG: Memory leak - request logs never cleared
+
 const requestLogs = [];
 
-// Logging middleware
+
 app.use((req, res, next) => {
-  // BUG: Array grows indefinitely
+
   requestLogs.push({
     timestamp: new Date(),
     method: req.method,
@@ -55,30 +49,30 @@ app.use((req, res, next) => {
     ip: req.ip
   });
   
-  // BUG: Never cleaned up!
+
   console.log(`Total requests: ${requestLogs.length}`);
   next();
 });
 
-// Simulate database delay
+
 function simulateDbQuery(ms = 50) {
   const start = Date.now();
-  // BUG: Blocking synchronous delay
+
   while (Date.now() - start < ms) {
-    // Busy wait - blocks event loop!
+
   }
 }
 
-// BUG: N+1 query problem
+
 app.get('/api/posts', (req, res) => {
   simulateDbQuery(10);
   
-  // Fetch all posts
+
   const allPosts = [...posts];
   
-  // BUG: For each post, fetch author separately (N+1)
+
   const postsWithAuthors = allPosts.map(post => {
-    simulateDbQuery(5); // Separate query for each post!
+    simulateDbQuery(5); 
     const author = users.find(u => u.id === post.authorId);
     
     return {
@@ -90,7 +84,7 @@ app.get('/api/posts', (req, res) => {
   res.json({ posts: postsWithAuthors });
 });
 
-// BUG: Nested N+1 queries
+
 app.get('/api/users/:id/activity', (req, res) => {
   const userId = parseInt(req.params.id);
   
@@ -101,12 +95,12 @@ app.get('/api/users/:id/activity', (req, res) => {
     return res.status(404).json({ error: 'User not found' });
   }
   
-  // BUG: N+1 - fetching posts one by one
+
   const userPosts = [];
   posts.forEach(post => {
     simulateDbQuery(5);
     if (post.authorId === userId) {
-      // BUG: Another N+1 - fetching comments for each post
+     
       const postComments = [];
       comments.forEach(comment => {
         simulateDbQuery(2);
@@ -128,10 +122,10 @@ app.get('/api/users/:id/activity', (req, res) => {
   });
 });
 
-// BUG: No caching of expensive computation
+
 app.get('/api/statistics', (req, res) => {
-  // BUG: Recalculated on every request
-  simulateDbQuery(100); // Expensive operation
+  
+  simulateDbQuery(100);
   
   const stats = {
     totalPosts: posts.length,
@@ -139,7 +133,7 @@ app.get('/api/statistics', (req, res) => {
     totalUsers: users.length,
     avgPostsPerUser: posts.length / users.length,
     avgCommentsPerPost: comments.length / posts.length,
-    // BUG: Inefficient calculation
+   
     topAuthors: posts.reduce((acc, post) => {
       const existing = acc.find(a => a.authorId === post.authorId);
       if (existing) {
@@ -154,20 +148,19 @@ app.get('/api/statistics', (req, res) => {
   res.json(stats);
 });
 
-// BUG: Inefficient sorting and filtering
+
 app.get('/api/posts/popular', (req, res) => {
   const { minLikes = 0 } = req.query;
   
-  // BUG: Sorting entire array when we only need top 10
+
   const sortedPosts = [...posts].sort((a, b) => b.likes - a.likes);
-  
-  // BUG: Filtering after sorting (should filter first)
+
   const filtered = sortedPosts.filter(p => p.likes >= parseInt(minLikes));
   
-  // BUG: Then slicing (could have done this earlier)
+
   const top10 = filtered.slice(0, 10);
   
-  // BUG: Another N+1 for author names
+
   const withAuthors = top10.map(post => {
     simulateDbQuery(5);
     const author = users.find(u => u.id === post.authorId);
@@ -180,16 +173,16 @@ app.get('/api/posts/popular', (req, res) => {
   res.json({ posts: withAuthors });
 });
 
-// BUG: Loading entire dataset into memory
+
 app.get('/api/comments', (req, res) => {
   const { page = 1, limit = 20 } = req.query;
   
   simulateDbQuery(20);
   
-  // BUG: Loading all comments first (memory intensive)
+
   const allComments = [...comments];
   
-  // BUG: Adding author to every comment (N+1)
+
   const withAuthors = allComments.map(comment => {
     simulateDbQuery(2);
     const author = users.find(u => u.id === comment.authorId);
@@ -199,7 +192,7 @@ app.get('/api/comments', (req, res) => {
     };
   });
   
-  // BUG: Paginating after all processing
+
   const pageNum = parseInt(page);
   const limitNum = parseInt(limit);
   const startIndex = (pageNum - 1) * limitNum;
@@ -212,7 +205,7 @@ app.get('/api/comments', (req, res) => {
   });
 });
 
-// BUG: Expensive regex operation on every request
+
 app.get('/api/search', (req, res) => {
   const { query } = req.query;
   
@@ -220,20 +213,19 @@ app.get('/api/search', (req, res) => {
     return res.status(400).json({ error: 'Query required' });
   }
   
-  // BUG: Creating regex on every search (could be cached)
-  // BUG: No escaping of special regex characters
+
   const regex = new RegExp(query, 'i');
   
-  // BUG: Searching through all data sequentially
+
   const matchingPosts = posts.filter(post => {
-    simulateDbQuery(3); // Simulate slow search
+    simulateDbQuery(3); 
     return regex.test(post.title) || regex.test(post.content);
   });
   
   res.json({ results: matchingPosts });
 });
 
-// BUG: Circular reference in response
+
 app.get('/api/departments', (req, res) => {
   simulateDbQuery(10);
   
@@ -244,10 +236,10 @@ app.get('/api/departments', (req, res) => {
     return {
       ...dept,
       users: deptUsers.map(user => {
-        // BUG: Creating circular reference
+     
         return {
           ...user,
-          department: dept // Circular!
+          department: dept 
         };
       })
     };
@@ -256,20 +248,20 @@ app.get('/api/departments', (req, res) => {
   res.json({ departments: deptWithUsers });
 });
 
-// BUG: Accumulating data in closure
+
 let cachedData = [];
 
 app.get('/api/analytics', (req, res) => {
   simulateDbQuery(50);
   
-  // BUG: Data accumulates, never cleared
+
   cachedData.push({
     timestamp: Date.now(),
     userCount: users.length,
     postCount: posts.length
   });
   
-  // BUG: Analyzing all historical data on every request
+
   const analytics = {
     current: cachedData[cachedData.length - 1],
     history: cachedData,
@@ -281,11 +273,11 @@ app.get('/api/analytics', (req, res) => {
   res.json(analytics);
 });
 
-// BUG: No connection pooling simulation
+
 const connections = [];
 
 app.get('/api/health', (req, res) => {
-  // BUG: Creating new "connection" on every request
+
   const connection = {
     id: Date.now(),
     created: new Date()
@@ -293,7 +285,7 @@ app.get('/api/health', (req, res) => {
   
   connections.push(connection);
   
-  // BUG: Never closing connections
+ 
   res.json({
     status: 'ok',
     activeConnections: connections.length
